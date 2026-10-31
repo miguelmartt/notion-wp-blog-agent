@@ -5,3 +5,4 @@ __pycache__/
 wp_credentials.json
 *.log
 /tmp/
+.blog_automation.lock
