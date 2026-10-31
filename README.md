@@ -17,8 +17,9 @@ Single-pass AI posts are short, generic and literal: ~370 words, keyword stuffed
 - **SERP-grounded**: top N Google results (Serper) are downloaded, cleaned and synthesized — never copied.
 - **Per-client voice**: each website owns a full style guide (Notion page). The model follows ONLY that client's guide: tone, banned formulas, structure, internal-linking and CTA rules.
 - **Real length**: writer targets ~1150 words; editor enforces the checklist and the 1000-1400 window.
-- **WordPress-complete**: excerpt, tags (created if missing), category match, unique slug, related-posts box, conversion link to home, author mapping, Yoast meta with graceful fallback.
-- **Ops-safe**: monthly quota per client, cron lock, factual short notes (LLM prose notes hallucinate), dry-run mode.
+- **WordPress-complete**: excerpt, tags (existing ones only — new suggestions go to the Notion note), category match, unique slug, related-posts box, conversion link to home, author mapping, Yoast meta with graceful fallback.
+- **Ops-safe**: monthly quota per client (fails closed), `flock` cron lock, `En curso` state so a crashed run never regenerates duplicate drafts, factual short notes (LLM prose notes hallucinate), dry-run mode.
+- **Hardened for untrusted input**: the model reads third-party pages, so its output is treated as hostile. Allowlist HTML sanitizer right before posting (`p, h2, h3, ul, ol, li, strong, em, a` — links only to the client's own `https` domain), SSRF-guarded downloads (https, public IPs only, redirects re-validated, 1.5 MB / 20 s caps), secrets redacted from logs, Notion and Telegram.
 
 Typical result: 370 → 1100-1500 words, review time 2 min + photo.
 
@@ -37,23 +38,23 @@ Full setup: [`docs/NOTION_SETUP.md`](docs/NOTION_SETUP.md) · [`docs/DEPLOY_VPS.
 ## How it works (5 steps)
 
 1. **You brief** — new row in Notion `Artículos`: client + `Keyword` + `Enfoque`, state `Pendiente`.
-2. **Agent researches** — Serper top 3 for `keyword + enfoque`, downloads each page, strips scripts/nav/footer → clean text.
-3. **Agent writes** — writer JSON (`titulo, meta_titulo, meta_descripcion, slug, categoria_sugerida, excerpt, tags, html`), then editor pass against the client's guide (length, H2 rules, vocab bans, links, CTA, no `<h1>` in body).
-4. **Agent drafts** — cleanup (strip `<h1>`, guarantee home link, append related box, unique slug) → `POST /wp-json/wp/v2/posts` with `status=draft`.
-5. **You review** — Notion row → `Generado` (good) or `Revisar` (read Nota) + Telegram ping with word count and edit link.
+2. **Agent researches** — Serper top 3 for `keyword + enfoque`, downloads each page (https to public IPs only, size and time capped), strips scripts/nav/footer → clean text, passed to the model clearly marked as untrusted data.
+3. **Agent writes** — row → `En curso`, then writer JSON (`titulo, meta_titulo, meta_descripcion, slug, categoria_sugerida, excerpt, tags, html`), then editor pass against the client's guide (length, H2 rules, vocab bans, links, CTA, no `<h1>` in body).
+4. **Agent drafts** — cleanup (guarantee home link, append related box, unique slug) → allowlist sanitizer (drops `<h1>`, scripts, iframes, attributes, external links; title/excerpt/meta become plain text) → `POST /wp-json/wp/v2/posts` with `status=draft`.
+5. **You review** — Notion row → `Generado` (good) or `Revisar` (read Nota: length, quota, anything the sanitizer removed, suggested new tags) + Telegram ping with word count and edit link.
 
 ## Multi-client onboarding (new site in ~10 min)
 
 1. Client sends: site URL, monthly quota, author display name, full style guide markdown (see [`guides/style-guide.example.md`](guides/style-guide.example.md)).
-2. You: new row in Notion `Clientes` (title = URL, `Cupo/mes`, paste guide inside the page) + WP user (Editor) + app password in `wp_credentials.json` + optional `AUTHOR_MAP_JSON` entry.
+2. You: new row in Notion `Clientes` (title = `https://` URL, `Cupo/mes`, paste guide inside the page) + dedicated WP user (Author or Contributor role) + app password in `wp_credentials.json` + optional `AUTHOR_MAP_JSON` entry.
 3. Test: one `Pendiente` row → `python blog_automation.py` → check draft → feedback → done. No code changes.
 
 ## Repo layout
 
 ```
-blog_automation.py              # the agent (single file, ~700 lines)
+blog_automation.py              # the agent (single file)
 guides/style-guide.example.md   # template client guide
-tests/test_smoke.py             # offline unit tests
+tests/                          # offline tests (network mocked): python -m pytest tests/ -q
 docs/
   ARCHITECTURE.md               # design + decisions + security
   NOTION_SETUP.md               # databases, properties, states
@@ -67,6 +68,13 @@ CHANGELOG.md / CONTRIBUTING.md / LICENSE (MIT)
 ## Placeholders & security
 
 Sanitized by design: no real hosts, tokens, chat IDs, keys or client content — only `example.com` placeholders. Secrets live in `.env` / `wp_credentials.json` (both gitignored). Least privilege everywhere: per-site WP app passwords, Notion integration scoped to the two DBs, Telegram token in env. Details in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#security).
+
+Recommended hardening for every site (step by step in [`docs/DEPLOY_VPS.md`](docs/DEPLOY_VPS.md)):
+
+- **Dedicated WordPress user with the Author or Contributor role** — neither has `unfiltered_html`, so WordPress filters whatever the agent posts as a second layer behind its own sanitizer. Never an Administrator.
+- **`define('DISALLOW_UNFILTERED_HTML', true);`** in `wp-config.php`, so no role (not even an admin whose app password leaks) can store raw scripts.
+- **`https://` site URLs only** — the Notion `Cliente` title and the `wp_credentials.json` keys. The agent refuses plain `http` (credentials would travel in clear).
+- **Log file mode `0640` with logrotate**, owned by the unprivileged cron user.
 
 ## License
 

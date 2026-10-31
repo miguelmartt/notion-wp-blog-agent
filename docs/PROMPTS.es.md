@@ -11,7 +11,7 @@ Dos llamadas con `response_format={"type": "json_object"}` y este contrato:
   "categoria_sugerida": "1-2 palabras",
   "excerpt": "1-2 frases, max 160",
   "tags": ["3-5 etiquetas"],
-  "html": "<p>/<h2>/<h3>/<ul>/<ol>/<li>/<strong> solo, NUNCA <h1>"
+  "html": "<p>/<h2>/<h3>/<ul>/<ol>/<li>/<strong>/<em>/<a href> solo, NUNCA <h1>, sin atributos"
 }
 ```
 
@@ -19,12 +19,13 @@ Dos llamadas con `response_format={"type": "json_object"}` y este contrato:
 
 - System: redactor SEO senior, español (España). **Sigue la guía DE ESTE cliente al 100%, sin mezclar.** Sintetiza SERP, no copia, nada de IA genérica.
 - User: guía completa + tono de posts propios + fuentes SERP + `keyword` + `enfoque` + `HOME_URL`.
-- Enlaces: 1-2 internos inline con anchor natural + 1 conversión a HOME_URL.
+- Cada fuente SERP va entre `<<<DATOS_NO_FIABLES>>> … <<<FIN_DATOS_NO_FIABLES>>>` y el prompt dice que son datos de terceros, nunca instrucciones. Si el texto de la página imita las marcas, se neutralizan para que no pueda cerrar el bloque antes de tiempo. Reduce el riesgo de prompt injection, no lo elimina: la defensa de verdad es el saneado antes de publicar.
+- Enlaces: 1-2 internos inline con anchor natural + 1 conversión a HOME_URL. Solo sobreviven al saneado los enlaces `https` a la propia web.
 - **La longitud manda desde código** (las guías discrepan): `OBJETIVO 1150, RANGO 1000-1250`. Los LLM se desvían ~15%, así que 1150 cae en ~1300-1400.
 
 ## Editor (`temperature=0.3`)
 
-- Misma guía + conteo actual. Checklist DE ESE cliente: longitud, H2 pregunta + párrafo antes de lista, fórmulas prohibidas, frases de experiencia, anchors naturales, mención + CTA, sin `<h1>`, inline + home presentes.
+- Misma guía + conteo actual. Checklist DE ESE cliente: longitud, H2 pregunta + párrafo antes de lista, fórmulas prohibidas, frases de experiencia, anchors naturales, mención + CTA, sin `<h1>`, inline + home presentes, solo etiquetas permitidas (sin atributos ni enlaces externos).
 - Devuelve `{"ok", "html_corregido", "nota"}`. Su `nota` libre **no se guarda** (alucinaba) — Nota en Notion la construye el código.
 
 ## Adaptar a un cliente nuevo
