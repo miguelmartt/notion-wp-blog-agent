@@ -1,6 +1,6 @@
 # notion-wp-blog-agent
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.9+-37734A?logo=python&logoColor=white)](https://www.python.org/) [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.9+-37734A?logo=python&logoColor=white)](https://www.python.org/) [![CI](https://github.com/miguelmartt/notion-wp-blog-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/miguelmartt/notion-wp-blog-agent/actions/workflows/ci.yml)
 
 **🌐 English** en [README.md](README.md) · **Español aquí**
 
